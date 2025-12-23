@@ -50,9 +50,9 @@ public class UT_Blockchain : TestKit
 
         // Fake balance
 
-        var key = new KeyBuilder(NativeContract.GAS.Id, 20).Add(acc.ScriptHash);
+        var key = new KeyBuilder(NativeContract.Governance.Id, 20).Add(acc.ScriptHash);
         var entry = snapshot.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * Governance.GasTokenFactor;
         snapshot.Commit();
 
         // Make transaction
@@ -75,9 +75,9 @@ public class UT_Blockchain : TestKit
 
         // Fake balance
 
-        var key = new KeyBuilder(NativeContract.GAS.Id, 20).Add(acc.ScriptHash);
+        var key = new KeyBuilder(NativeContract.Governance.Id, 20).Add(acc.ScriptHash);
         var entry = snapshot.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * Governance.GasTokenFactor;
         snapshot.Commit();
 
         // Make transaction
@@ -114,14 +114,14 @@ public class UT_Blockchain : TestKit
         engine.LoadScript(Array.Empty<byte>());
 
         // Fake balance for accounts A and B.
-        var key = new KeyBuilder(NativeContract.GAS.Id, 20).Add(accA.ScriptHash);
+        var key = new KeyBuilder(NativeContract.Governance.Id, 20).Add(accA.ScriptHash);
         var entry = snapshot.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * Governance.GasTokenFactor;
         snapshot.Commit();
 
-        key = new KeyBuilder(NativeContract.GAS.Id, 20).Add(accB.ScriptHash);
+        key = new KeyBuilder(NativeContract.Governance.Id, 20).Add(accB.ScriptHash);
         entry = snapshot.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 100_000_000 * Governance.GasTokenFactor;
         snapshot.Commit();
 
         // Create transactions:

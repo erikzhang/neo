@@ -686,7 +686,7 @@ public class UT_CryptoLib
         // Create fake balance to pay the fees.
         ApplicationEngine engine = ApplicationEngine.Create(TriggerType.Application, null, snapshotCache,
             settings: TestProtocolSettings.Default, gas: long.MaxValue);
-        _ = NativeContract.GAS.Mint(engine, acc, 5_0000_0000, false);
+        _ = engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "mint", NativeContract.Governance.GasTokenId, acc, 5_0000_0000);
         snapshotCache.Commit();
 
         Assert.AreEqual(VerifyResult.Succeed, tx.VerifyStateDependent(TestProtocolSettings.Default, snapshotCache, new(), []));
@@ -941,7 +941,7 @@ public class UT_CryptoLib
         // Create fake balance to pay the fees.
         var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshotCache,
             settings: TestProtocolSettings.Default, gas: long.MaxValue);
-        _ = NativeContract.GAS.Mint(engine, acc, 5_0000_0000, false);
+        _ = engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "mint", NativeContract.Governance.GasTokenId, acc, 5_0000_0000);
 
         // We should not use commit here cause once its committed, the value we get from the snapshot can be different
         // from the underline storage. Thought there isn't any issue triggered here, its wrong to use it this way.

@@ -31,13 +31,13 @@ public class UT_GasToken
     }
 
     [TestMethod]
-    public void Check_Name() => Assert.AreEqual(nameof(GasToken), NativeContract.GAS.Name);
+    public void Check_Name() => Assert.AreEqual("GasToken", Governance.GasTokenName);
 
     [TestMethod]
-    public void Check_Symbol() => Assert.AreEqual("GAS", NativeContract.GAS.Symbol(_snapshotCache));
+    public void Check_Symbol() => Assert.AreEqual("GAS", Governance.GasTokenSymbol);
 
     [TestMethod]
-    public void Check_Decimals() => Assert.AreEqual(8, NativeContract.GAS.Decimals(_snapshotCache));
+    public void Check_Decimals() => Assert.AreEqual(8, Governance.GasTokenDecimals);
 
     [TestMethod]
     public async Task Check_BalanceOfTransferAndBurn()
@@ -57,7 +57,8 @@ public class UT_GasToken
         };
         byte[] from = Contract.GetBFTAddress(TestProtocolSettings.Default.StandbyValidators).ToArray();
         byte[] to = new byte[20];
-        var supply = NativeContract.GAS.TotalSupply(snapshot);
+        var tokenInfo = NativeContract.TokenManagement.GetTokenInfo(snapshot, NativeContract.Governance.GasTokenId);
+        var supply = tokenInfo!.TotalSupply;
         Assert.AreEqual(5200000050000000, supply); // 3000000000000000 + 50000000 (neo holder reward)
 
         var storageKey = new KeyBuilder(NativeContract.Ledger.Id, 12);
@@ -77,8 +78,8 @@ public class UT_GasToken
         Assert.AreEqual(100000000, NativeContract.NEO.BalanceOf(snapshot, from));
         Assert.AreEqual(0, NativeContract.NEO.BalanceOf(snapshot, to));
 
-        Assert.AreEqual(52000500_00000000, NativeContract.GAS.BalanceOf(snapshot, from));
-        Assert.AreEqual(0, NativeContract.GAS.BalanceOf(snapshot, to));
+        Assert.AreEqual(52000500_00000000, NativeContract.TokenManagement.BalanceOf(snapshot, NativeContract.Governance.GasTokenId, new UInt160(from)));
+        Assert.AreEqual(0, NativeContract.TokenManagement.BalanceOf(snapshot, NativeContract.Governance.GasTokenId, new UInt160(to)));
 
         // Check unclaim
 
@@ -86,7 +87,8 @@ public class UT_GasToken
         Assert.AreEqual(new BigInteger(0), unclaim.Value);
         Assert.IsTrue(unclaim.State);
 
-        supply = NativeContract.GAS.TotalSupply(snapshot);
+        tokenInfo = NativeContract.TokenManagement.GetTokenInfo(snapshot, NativeContract.Governance.GasTokenId);
+        supply = tokenInfo!.TotalSupply;
         Assert.AreEqual(5200050050000000, supply);
 
         Assert.AreEqual(keyCount + 3, snapshot.GetChangeSet().Count()); // Gas
@@ -95,14 +97,31 @@ public class UT_GasToken
 
         keyCount = snapshot.GetChangeSet().Count();
 
-        Assert.IsFalse(NativeContract.GAS.Transfer(snapshot, from, to, 52000500_00000000, false, persistingBlock)); // Not signed
-        Assert.IsFalse(NativeContract.GAS.Transfer(snapshot, from, to, 52000500_00000001, true, persistingBlock)); // More than balance
-        Assert.IsTrue(NativeContract.GAS.Transfer(snapshot, from, to, 52000500_00000000, true, persistingBlock)); // All balance
+        using (var engine1 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine1.LoadScript(Array.Empty<byte>());
+            var result1 = await engine1.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000000, null);
+            Assert.IsFalse(result1); // Not signed
+        }
+
+        using (var engine2 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine2.LoadScript(Array.Empty<byte>());
+            var result2 = await engine2.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000001, null);
+            Assert.IsFalse(result2); // More than balance
+        }
+
+        using (var engine3 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine3.LoadScript(Array.Empty<byte>());
+            var result3 = await engine3.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000000, null);
+            Assert.IsTrue(result3); // All balance
+        }
 
         // Balance of
 
-        Assert.AreEqual(52000500_00000000, NativeContract.GAS.BalanceOf(snapshot, to));
-        Assert.AreEqual(0, NativeContract.GAS.BalanceOf(snapshot, from));
+        Assert.AreEqual(52000500_00000000, NativeContract.TokenManagement.BalanceOf(snapshot, NativeContract.Governance.GasTokenId, new UInt160(to)));
+        Assert.AreEqual(0, NativeContract.TokenManagement.BalanceOf(snapshot, NativeContract.Governance.GasTokenId, new UInt160(from)));
 
         Assert.AreEqual(keyCount + 1, snapshot.GetChangeSet().Count()); // All
 
@@ -112,31 +131,46 @@ public class UT_GasToken
         engine.LoadScript(Array.Empty<byte>());
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(async () =>
-            await NativeContract.GAS.Burn(engine, new UInt160(to), BigInteger.MinusOne));
+            await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), BigInteger.MinusOne));
 
         // Burn more than expected
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
-            await NativeContract.GAS.Burn(engine, new UInt160(to), new BigInteger(52000500_00000001)));
+            await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(52000500_00000001)));
 
         // Real burn
 
-        await NativeContract.GAS.Burn(engine, new UInt160(to), new BigInteger(1));
+        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(1));
 
-        Assert.AreEqual(5200049999999999, NativeContract.GAS.BalanceOf(engine.SnapshotCache, to));
+        Assert.AreEqual(5200049999999999, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, new UInt160(to)));
 
         Assert.AreEqual(2, engine.SnapshotCache.GetChangeSet().Count());
 
         // Burn all
-        await NativeContract.GAS.Burn(engine, new UInt160(to), new BigInteger(5200049999999999));
+        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(5200049999999999));
 
         Assert.AreEqual(keyCount - 2, engine.SnapshotCache.GetChangeSet().Count());
 
         // Bad inputs
 
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => _ = NativeContract.GAS.Transfer(engine.SnapshotCache, from, to, BigInteger.MinusOne, true, persistingBlock));
-        Assert.ThrowsExactly<FormatException>(() => _ = NativeContract.GAS.Transfer(engine.SnapshotCache, new byte[19], to, BigInteger.One, false, persistingBlock));
-        Assert.ThrowsExactly<FormatException>(() => _ = NativeContract.GAS.Transfer(engine.SnapshotCache, from, new byte[19], BigInteger.One, false, persistingBlock));
+        using (var engine4 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine4.LoadScript(Array.Empty<byte>());
+            await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(async () =>
+                await engine4.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), BigInteger.MinusOne, null));
+        }
+
+        using (var engine5 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine5.LoadScript(Array.Empty<byte>());
+            Assert.ThrowsExactly<FormatException>(() => _ = engine5.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new byte[19], new UInt160(to), BigInteger.One, null));
+        }
+
+        using (var engine6 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine6.LoadScript(Array.Empty<byte>());
+            Assert.ThrowsExactly<FormatException>(() => _ = engine6.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new byte[19], BigInteger.One, null));
+        }
     }
 
     internal static StorageKey CreateStorageKey(byte prefix, uint key)
@@ -151,7 +185,7 @@ public class UT_GasToken
         key?.CopyTo(buffer.AsSpan(1));
         return new()
         {
-            Id = NativeContract.GAS.Id,
+            Id = NativeContract.Governance.Id,
             Key = buffer
         };
     }

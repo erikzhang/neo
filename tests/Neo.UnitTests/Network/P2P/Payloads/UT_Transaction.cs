@@ -151,10 +151,10 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -163,7 +163,7 @@ public class UT_Transaction
         var tx = walletA.MakeTransaction(snapshotCache, [
             new TransferOutput
             {
-                AssetId = NativeContract.GAS.Hash,
+                AssetId = NativeContract.Governance.GasTokenId,
                 ScriptHash = acc.ScriptHash,
                 Value = new BigDecimal(BigInteger.One, 8)
             }
@@ -217,11 +217,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -231,7 +231,7 @@ public class UT_Transaction
         var tx = wallet.MakeTransaction(snapshotCache, [
             new TransferOutput
             {
-                AssetId = NativeContract.GAS.Hash,
+                AssetId = NativeContract.Governance.GasTokenId,
                 ScriptHash = acc.ScriptHash,
                 Value = new BigDecimal(BigInteger.One, 8)
             }
@@ -321,11 +321,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -337,7 +337,8 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             var value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -400,11 +401,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -416,7 +417,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -426,7 +427,7 @@ public class UT_Transaction
             {
                 Account = acc.ScriptHash,
                 Scopes = WitnessScope.CustomContracts,
-                AllowedContracts = [NativeContract.GAS.Hash]
+                AllowedContracts = [NativeContract.Governance.GasTokenId]
             } };
 
         // using this...
@@ -480,11 +481,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -496,7 +497,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             var value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -510,7 +511,7 @@ public class UT_Transaction
                 // it would be better to test this in the future including situations
                 // where a deeper call level uses this custom witness successfully
                 Scopes = WitnessScope.CustomContracts | WitnessScope.CalledByEntry,
-                AllowedContracts = [NativeContract.GAS.Hash]
+                AllowedContracts = [NativeContract.Governance.GasTokenId]
             } };
 
         // using this...
@@ -564,11 +565,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         // Make transaction
         // Manually creating script
@@ -578,7 +579,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -608,11 +609,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -624,7 +625,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -634,7 +635,7 @@ public class UT_Transaction
             {
                 Account = acc.ScriptHash,
                 Scopes = WitnessScope.CustomContracts,
-                AllowedContracts = [NativeContract.NEO.Hash, NativeContract.GAS.Hash]
+                AllowedContracts = [NativeContract.NEO.Hash, NativeContract.Governance.GasTokenId]
             } };
 
         // using this...
@@ -693,11 +694,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         // Make transaction
         // Manually creating script
@@ -707,7 +708,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -718,7 +719,7 @@ public class UT_Transaction
             {
                 Account = acc.ScriptHash,
                 Scopes = WitnessScope.CustomContracts,
-                AllowedContracts = [NativeContract.NEO.Hash, NativeContract.GAS.Hash]
+                AllowedContracts = [NativeContract.NEO.Hash, NativeContract.Governance.GasTokenId]
             } };
 
         // using this...
@@ -738,11 +739,11 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
 
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -754,7 +755,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -987,9 +988,9 @@ public class UT_Transaction
         var acc = wallet.CreateAccount();
 
         // Fake balance
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -1001,7 +1002,7 @@ public class UT_Transaction
         {
             // self-transfer of 1e-8 GAS
             BigInteger value = new BigDecimal(BigInteger.One, 8).Value;
-            sb.EmitDynamicCall(NativeContract.GAS.Hash, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
+            sb.EmitDynamicCall(NativeContract.Governance.GasTokenId, "transfer", acc.ScriptHash, acc.ScriptHash, value, null);
             sb.Emit(OpCode.ASSERT);
             script = sb.ToArray();
         }
@@ -1153,10 +1154,10 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
 
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         snapshotCache.Commit();
 
@@ -1165,7 +1166,7 @@ public class UT_Transaction
         tx = walletA.MakeTransaction(snapshotCache, [
             new TransferOutput
             {
-                AssetId = NativeContract.GAS.Hash,
+                AssetId = NativeContract.Governance.GasTokenId,
                 ScriptHash = acc.ScriptHash,
                 Value = new BigDecimal(BigInteger.One, 8)
             }
@@ -1218,7 +1219,7 @@ public class UT_Transaction
 
         // Fake balance
 
-        var key = NativeContract.GAS.CreateStorageKey(20, tx.Sender);
+        var key = NativeContract.Governance.CreateStorageKey(20, tx.Sender);
         var balance = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
         balance.GetInteroperable<AccountState>().Balance = tx.NetworkFee;
         var conflicts = new List<Transaction>();
@@ -1246,9 +1247,9 @@ public class UT_Transaction
         // Fake balance
 
         snapshotCache = TestBlockchain.GetTestSnapshotCache();
-        key = NativeContract.GAS.CreateStorageKey(20, acc.ScriptHash);
+        key = NativeContract.Governance.CreateStorageKey(20, acc.ScriptHash);
         balance = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        balance.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        balance.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         // Make transaction
 
@@ -1257,7 +1258,7 @@ public class UT_Transaction
         {
                 new TransferOutput()
                 {
-                     AssetId = NativeContract.GAS.Hash,
+                     AssetId = NativeContract.Governance.GasTokenId,
                      ScriptHash = acc.ScriptHash,
                      Value = new BigDecimal(BigInteger.One,8)
                 }

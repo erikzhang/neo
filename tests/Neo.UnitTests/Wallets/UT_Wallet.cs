@@ -228,11 +228,11 @@ public class UT_Wallet
 
         // Fake balance
         var snapshotCache = TestBlockchain.GetTestSnapshotCache();
-        var key = NativeContract.GAS.CreateStorageKey(20, account.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, account.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
-        Assert.AreEqual(new BigDecimal(new BigInteger(1000000000000M), 8), wallet.GetAvailable(snapshotCache, NativeContract.GAS.Hash));
+        Assert.AreEqual(new BigDecimal(new BigInteger(1000000000000M), 8), wallet.GetAvailable(snapshotCache, NativeContract.Governance.GasTokenId));
 
         entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
         entry.GetInteroperable<AccountState>().Balance = 0;
@@ -248,14 +248,14 @@ public class UT_Wallet
 
         // Fake balance
         var snapshotCache = TestBlockchain.GetTestSnapshotCache();
-        var key = NativeContract.GAS.CreateStorageKey(20, account.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, account.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         Assert.AreEqual(new BigDecimal(BigInteger.Zero, 0),
             wallet.GetBalance(snapshotCache, UInt160.Zero, [account.ScriptHash]));
         Assert.AreEqual(new BigDecimal(new BigInteger(1000000000000M), 8),
-            wallet.GetBalance(snapshotCache, NativeContract.GAS.Hash, [account.ScriptHash]));
+            wallet.GetBalance(snapshotCache, NativeContract.Governance.GasTokenId, [account.ScriptHash]));
 
         entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
         entry.GetInteroperable<AccountState>().Balance = 0;
@@ -310,7 +310,7 @@ public class UT_Wallet
         Action action = () => wallet.MakeTransaction(snapshotCache, [
             new()
             {
-                AssetId = NativeContract.GAS.Hash,
+                AssetId = NativeContract.Governance.GasTokenId,
                 ScriptHash = account.ScriptHash,
                 Value = new BigDecimal(BigInteger.One, 8),
                 Data = "Dec 12th"
@@ -321,7 +321,7 @@ public class UT_Wallet
         action = () => wallet.MakeTransaction(snapshotCache, [
             new()
             {
-                AssetId = NativeContract.GAS.Hash,
+                AssetId = NativeContract.Governance.GasTokenId,
                 ScriptHash = account.ScriptHash,
                 Value = new BigDecimal(BigInteger.One, 8),
                 Data = "Dec 12th"
@@ -341,9 +341,9 @@ public class UT_Wallet
         Assert.ThrowsExactly<InvalidOperationException>(action);
 
         // Fake balance
-        var key = NativeContract.GAS.CreateStorageKey(20, account.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, account.ScriptHash);
         var entry1 = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry1.GetInteroperable<AccountState>().Balance = 10000 * NativeContract.GAS.Factor;
+        entry1.GetInteroperable<AccountState>().Balance = 10000 * Governance.GasTokenFactor;
 
         key = NativeContract.NEO.CreateStorageKey(20, account.ScriptHash);
         var entry2 = snapshotCache.GetAndChange(key, () => new StorageItem(new NeoToken.NeoAccountState()));
@@ -352,7 +352,7 @@ public class UT_Wallet
         var tx = wallet.MakeTransaction(snapshotCache, [
             new()
             {
-                 AssetId = NativeContract.GAS.Hash,
+                 AssetId = NativeContract.Governance.GasTokenId,
                  ScriptHash = account.ScriptHash,
                  Value = new BigDecimal(BigInteger.One,8)
             }
@@ -388,9 +388,9 @@ public class UT_Wallet
         account.Lock = false;
 
         // Fake balance
-        var key = NativeContract.GAS.CreateStorageKey(20, account.ScriptHash);
+        var key = NativeContract.Governance.CreateStorageKey(20, account.ScriptHash);
         var entry = snapshotCache.GetAndChange(key, () => new StorageItem(new AccountState()));
-        entry.GetInteroperable<AccountState>().Balance = 1000000 * NativeContract.GAS.Factor;
+        entry.GetInteroperable<AccountState>().Balance = 1000000 * Governance.GasTokenFactor;
 
         var tx = wallet.MakeTransaction(snapshotCache, Array.Empty<byte>(), account.ScriptHash, [
             new()

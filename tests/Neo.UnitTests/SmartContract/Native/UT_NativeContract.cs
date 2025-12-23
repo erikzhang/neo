@@ -82,7 +82,7 @@ public class UT_NativeContract
 
         // Ensure that native NEP17 contracts contain proper supported standards and events declared
         // in the manifest constructed for all hardforks enabled. Ref. https://github.com/neo-project/neo/pull/3195.
-        foreach (var h in new List<UInt160>() { NativeContract.GAS.Hash, NativeContract.NEO.Hash })
+        foreach (var h in new List<UInt160>() { NativeContract.Governance.GasTokenId, NativeContract.NEO.Hash })
         {
             var state = Call_GetContract(snapshot, h, persistingBlock);
             Assert.IsTrue(state.Manifest.SupportedStandards.Contains("NEP-17"));
@@ -99,7 +99,7 @@ public class UT_NativeContract
         Assert.AreEqual(-3, NativeContract.CryptoLib.Id);
         Assert.AreEqual(-4, NativeContract.Ledger.Id);
         Assert.AreEqual(-5, NativeContract.NEO.Id);
-        Assert.AreEqual(-6, NativeContract.GAS.Id);
+        Assert.AreEqual(-6, NativeContract.Governance.Id);
         Assert.AreEqual(-7, NativeContract.Policy.Id);
         Assert.AreEqual(-8, NativeContract.RoleManagement.Id);
         Assert.AreEqual(-9, NativeContract.Oracle.Id);
