@@ -46,8 +46,8 @@ public class UT_TransactionVerificationContext
 
         ApplicationEngine engine = ApplicationEngine.Create(TriggerType.Application, null, snapshotCache, settings: TestProtocolSettings.Default, gas: long.MaxValue);
         BigInteger balance = NativeContract.TokenManagement.BalanceOf(snapshotCache, NativeContract.Governance.GasTokenId, UInt160.Zero);
-        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, UInt160.Zero, balance);
-        _ = engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "mint", NativeContract.Governance.GasTokenId, UInt160.Zero, 8);
+        await NativeContract.TokenManagement.BurnInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, balance, assertOwner: false);
+        await NativeContract.TokenManagement.MintInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, 8, assertOwner: false, callOnPayment: false);
 
         // Test
         TransactionVerificationContext verificationContext = new();
@@ -68,8 +68,8 @@ public class UT_TransactionVerificationContext
         var snapshotCache = TestBlockchain.GetTestSnapshotCache();
         ApplicationEngine engine = ApplicationEngine.Create(TriggerType.Application, null, snapshotCache, settings: TestProtocolSettings.Default, gas: long.MaxValue);
         BigInteger balance = NativeContract.TokenManagement.BalanceOf(snapshotCache, NativeContract.Governance.GasTokenId, UInt160.Zero);
-        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, UInt160.Zero, balance);
-        _ = engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "mint", NativeContract.Governance.GasTokenId, UInt160.Zero, 8);
+        await NativeContract.TokenManagement.BurnInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, balance, assertOwner: false);
+        await NativeContract.TokenManagement.MintInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, 8, assertOwner: false, callOnPayment: false);
 
         TransactionVerificationContext verificationContext = new();
         var tx = CreateTransactionWithFee(1, 2);
@@ -91,8 +91,8 @@ public class UT_TransactionVerificationContext
         var snapshotCache = TestBlockchain.GetTestSnapshotCache();
         ApplicationEngine engine = ApplicationEngine.Create(TriggerType.Application, null, snapshotCache, settings: TestProtocolSettings.Default, gas: long.MaxValue);
         BigInteger balance = NativeContract.TokenManagement.BalanceOf(snapshotCache, NativeContract.Governance.GasTokenId, UInt160.Zero);
-        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, UInt160.Zero, balance);
-        _ = engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "mint", NativeContract.Governance.GasTokenId, UInt160.Zero, 3 + 3 + 1); // balance is enough for 2 transactions and 1 GAS is left.
+        await NativeContract.TokenManagement.BurnInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, balance, assertOwner: false);
+        await NativeContract.TokenManagement.MintInternal(engine, NativeContract.Governance.GasTokenId, UInt160.Zero, 3 + 3 + 1, assertOwner: false, callOnPayment: false); // balance is enough for 2 transactions and 1 GAS is left.
 
         TransactionVerificationContext verificationContext = new();
         var tx = CreateTransactionWithFee(1, 2);

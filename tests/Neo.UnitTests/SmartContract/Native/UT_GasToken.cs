@@ -10,11 +10,13 @@
 // modifications are permitted.
 
 using Neo.Extensions.IO;
+using Neo.Extensions.VM;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
 using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using Neo.UnitTests.Extensions;
+using Neo.VM;
 using System.Numerics;
 
 namespace Neo.UnitTests.SmartContract.Native;
@@ -98,24 +100,30 @@ public class UT_GasToken
         keyCount = snapshot.GetChangeSet().Count();
 
         using (var engine1 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine1.LoadScript(Array.Empty<byte>());
-            var result1 = await engine1.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000000, null);
-            Assert.IsFalse(result1); // Not signed
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, from, to, 52000500_00000000, null);
+            engine1.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.HALT, engine1.Execute());
+            Assert.IsFalse(engine1.ResultStack.Pop().GetBoolean()); // Not signed
         }
 
         using (var engine2 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine2.LoadScript(Array.Empty<byte>());
-            var result2 = await engine2.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000001, null);
-            Assert.IsFalse(result2); // More than balance
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, from, to, 52000500_00000001, null);
+            engine2.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.HALT, engine2.Execute());
+            Assert.IsFalse(engine2.ResultStack.Pop().GetBoolean()); // More than balance
         }
 
         using (var engine3 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine3.LoadScript(Array.Empty<byte>());
-            var result3 = await engine3.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), 52000500_00000000, null);
-            Assert.IsTrue(result3); // All balance
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, from, to, 52000500_00000000, null);
+            engine3.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.HALT, engine3.Execute());
+            Assert.IsTrue(engine3.ResultStack.Pop().GetBoolean()); // All balance
         }
 
         // Balance of
