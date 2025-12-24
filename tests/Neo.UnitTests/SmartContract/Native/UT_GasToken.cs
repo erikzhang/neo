@@ -135,49 +135,73 @@ public class UT_GasToken
 
         // Burn
 
-        using var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshot, persistingBlock, settings: TestProtocolSettings.Default, gas: 0);
-        engine.LoadScript(Array.Empty<byte>());
-
-        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(async () =>
-            await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), BigInteger.MinusOne));
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
+        {
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, to, BigInteger.MinusOne);
+            engine.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.FAULT, engine.Execute());
+            Assert.IsInstanceOfType<ArgumentOutOfRangeException>(engine.FaultException);
+        }
 
         // Burn more than expected
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
-            await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(52000500_00000001)));
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
+        {
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, to, 52000500_00000001);
+            var context = engine.LoadScript(sb.ToArray());
+            context.GetState<ExecutionContextState>().ScriptHash = NativeContract.Governance.Hash;
+            Assert.AreEqual(VMState.FAULT, engine.Execute());
+            Assert.IsInstanceOfType<InvalidOperationException>(engine.FaultException);
+        }
 
         // Real burn
 
-        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(1));
-
-        Assert.AreEqual(5200049999999999, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, new UInt160(to)));
-
-        Assert.AreEqual(2, engine.SnapshotCache.GetChangeSet().Count());
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine.LoadScript(Array.Empty<byte>());
+            await NativeContract.TokenManagement.BurnInternal(engine, NativeContract.Governance.GasTokenId, to, BigInteger.One, assertOwner: false);
+            Assert.AreEqual(5200049999999999, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, new UInt160(to)));
+            Assert.AreEqual(2, engine.SnapshotCache.GetChangeSet().Count());
+        }
 
         // Burn all
-        await engine.CallFromNativeContractAsync(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "burn", NativeContract.Governance.GasTokenId, new UInt160(to), new BigInteger(5200049999999999));
 
-        Assert.AreEqual(keyCount - 2, engine.SnapshotCache.GetChangeSet().Count());
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, null, snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        {
+            engine.LoadScript(Array.Empty<byte>());
+            await NativeContract.TokenManagement.BurnInternal(engine, NativeContract.Governance.GasTokenId, to, 5200049999999999, assertOwner: false);
+            Assert.AreEqual(keyCount - 2, engine.SnapshotCache.GetChangeSet().Count());
+        }
 
         // Bad inputs
 
-        using (var engine4 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(new UInt160(from)), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine4.LoadScript(Array.Empty<byte>());
-            await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(async () =>
-                await engine4.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new UInt160(to), BigInteger.MinusOne, null));
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, from, to, BigInteger.MinusOne, null);
+            engine.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.FAULT, engine.Execute());
+            Assert.IsInstanceOfType<ArgumentOutOfRangeException>(engine.FaultException);
         }
 
-        using (var engine5 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine5.LoadScript(Array.Empty<byte>());
-            Assert.ThrowsExactly<FormatException>(() => _ = engine5.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new byte[19], new UInt160(to), BigInteger.One, null));
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new byte[19], to, BigInteger.One, null);
+            engine.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.FAULT, engine.Execute());
+            Assert.IsInstanceOfType<FormatException>(engine.FaultException);
         }
 
-        using (var engine6 = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), engine.SnapshotCache, persistingBlock, settings: TestProtocolSettings.Default))
+        using (var engine = ApplicationEngine.Create(TriggerType.Application, new Nep17NativeContractExtensions.ManualWitness(), snapshot, persistingBlock, settings: TestProtocolSettings.Default))
+        using (ScriptBuilder sb = new())
         {
-            engine6.LoadScript(Array.Empty<byte>());
-            Assert.ThrowsExactly<FormatException>(() => _ = engine6.CallFromNativeContractAsync<bool>(NativeContract.Governance.Hash, NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, new UInt160(from), new byte[19], BigInteger.One, null));
+            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", NativeContract.Governance.GasTokenId, from, new byte[19], BigInteger.One, null);
+            engine.LoadScript(sb.ToArray());
+            Assert.AreEqual(VMState.FAULT, engine.Execute());
+            Assert.IsInstanceOfType<FormatException>(engine.FaultException);
         }
     }
 
