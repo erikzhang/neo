@@ -1210,13 +1210,37 @@ public class UT_NeoToken
     internal static (bool State, bool Result) Check_RegisterValidatorViaNEP27(DataCache clonedCache, ECPoint pubkey, Block persistingBlock, bool passNEO, byte[] data, BigInteger amount)
     {
         var keyScriptHash = Contract.CreateSignatureRedeemScript(pubkey).ToScriptHash();
-        var contractID = passNEO ? NativeContract.NEO.Id : NativeContract.Governance.Id;
-        var storageKey = new KeyBuilder(contractID, 20).Add(keyScriptHash); // 20 is Prefix_Account
-
+        StorageKey storageKey;
+        
         if (passNEO)
+        {
+            // NEO uses Prefix_Account = 20
+            storageKey = new KeyBuilder(NativeContract.NEO.Id, 20).Add(keyScriptHash);
             clonedCache.Add(storageKey, new StorageItem(new NeoAccountState { Balance = amount }));
+        }
         else
+        {
+            // GasToken uses TokenManagement with Prefix_AccountState = 12
+            // First, ensure TokenState exists (required by TokenManagement.BalanceOf)
+            var tokenStateKey = new KeyBuilder(NativeContract.TokenManagement.Id, 10).Add(NativeContract.Governance.GasTokenId);
+            if (!clonedCache.Contains(tokenStateKey))
+            {
+                var tokenState = new TokenState
+                {
+                    Type = TokenType.Fungible,
+                    Owner = NativeContract.Governance.Hash,
+                    Name = Governance.GasTokenName,
+                    Symbol = Governance.GasTokenSymbol,
+                    Decimals = Governance.GasTokenDecimals,
+                    TotalSupply = BigInteger.Zero,
+                    MaxSupply = BigInteger.MinusOne
+                };
+                clonedCache.Add(tokenStateKey, new StorageItem(tokenState));
+            }
+            // Then set account balance: KeyBuilder(TokenManagement.Id, 12).Add(account).Add(assetId)
+            storageKey = new KeyBuilder(NativeContract.TokenManagement.Id, 12).Add(keyScriptHash).Add(NativeContract.Governance.GasTokenId);
             clonedCache.Add(storageKey, new StorageItem(new AccountState { Balance = amount }));
+        }
 
         using var engine = ApplicationEngine.Create(TriggerType.Application,
             new Nep17NativeContractExtensions.ManualWitness(keyScriptHash), clonedCache, persistingBlock, settings: TestProtocolSettings.Default, gas: 1_0000_0000);

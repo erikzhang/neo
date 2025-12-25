@@ -20,6 +20,7 @@ using Neo.UnitTests.Extensions;
 using Neo.VM;
 using Neo.VM.Types;
 using Neo.Wallets;
+using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -68,12 +69,18 @@ public class UT_Notary
         snapshot.Add(storageKey, new(new HashIndexState { Hash = UInt256.Zero, Index = persistingBlock.Index - 1 }));
 
         // Non-GAS transfer should fail.
-        Assert.ThrowsExactly<TargetInvocationException>(
+        Exception? ex = Assert.Throws<Exception>(
             () => NativeContract.NEO.Transfer(snapshot, from, to, BigInteger.Zero, true, persistingBlock));
+        while (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+            ex = tie.InnerException;
+        Assert.IsInstanceOfType<InvalidOperationException>(ex);
 
         // GAS transfer with invalid data format should fail.
-        Assert.ThrowsExactly<TargetInvocationException>(
+        ex = Assert.Throws<Exception>(
             () => TransferGAS(snapshot, from, to, BigInteger.Zero, true, persistingBlock, 5));
+        while (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+            ex = tie.InnerException;
+        Assert.IsInstanceOfType<FormatException>(ex);
 
         // GAS transfer with wrong number of data elements should fail.
         var data = new ContractParameter
@@ -81,8 +88,11 @@ public class UT_Notary
             Type = ContractParameterType.Array,
             Value = new List<ContractParameter>() { new() { Type = ContractParameterType.Boolean, Value = true } }
         };
-        Assert.ThrowsExactly<TargetInvocationException>(
+        ex = Assert.Throws<Exception>(
             () => TransferGAS(snapshot, from, to, BigInteger.Zero, true, persistingBlock, data));
+        while (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+            ex = tie.InnerException;
+        Assert.IsInstanceOfType<FormatException>(ex);
 
         // Gas transfer with invalid Till parameter should fail.
         data = new ContractParameter
@@ -93,8 +103,11 @@ public class UT_Notary
                 new() { Type = ContractParameterType.Integer, Value = persistingBlock.Index } ,
             }
         };
-        Assert.ThrowsExactly<TargetInvocationException>(
+        ex = Assert.Throws<Exception>(
             () => TransferGASWithTransaction(snapshot, from, to, BigInteger.Zero, true, persistingBlock, data));
+        while (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+            ex = tie.InnerException;
+        Assert.IsInstanceOfType<ArgumentOutOfRangeException>(ex);
 
         // Insufficient first deposit.
         data = new ContractParameter
@@ -105,8 +118,11 @@ public class UT_Notary
                 new() { Type = ContractParameterType.Integer, Value = persistingBlock.Index + 100 },
             }
         };
-        Assert.ThrowsExactly<TargetInvocationException>(
+        ex = Assert.Throws<Exception>(
             () => TransferGASWithTransaction(snapshot, from, to, 2 * 1000_0000 - 1, true, persistingBlock, data));
+        while (ex is System.Reflection.TargetInvocationException tie && tie.InnerException != null)
+            ex = tie.InnerException;
+        Assert.IsInstanceOfType<ArgumentOutOfRangeException>(ex);
 
         // Good deposit.
         data = new ContractParameter
@@ -787,18 +803,46 @@ public class UT_Notary
 
         // Check that proper amount of GAS was minted to block's Primary and the rest
         // is evenly devided between designated Notary nodes as a reward.
-        // burn tx1 and tx2 network fee + mint primary reward + transfer reward to Notary1 and Notary2
+        // Notification order: burn tx1, burn tx2, mint primary, mint Notary1, mint Notary2
         Assert.HasCount(2 + 1 + 2, engine.Notifications);
-        Assert.AreEqual(netFee1 + netFee2 - expectedNotaryReward, engine.Notifications[2].State[2]);
-        Assert.AreEqual(netFee1 + netFee2 - expectedNotaryReward, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, primary));
-        Assert.AreEqual(expectedNotaryReward / 2, engine.Notifications[3].State[2]);
+        
+        // Verify primary balance (minted amount = netFee1 + netFee2 - expectedNotaryReward)
+        var expectedPrimaryAmount = netFee1 + netFee2 - expectedNotaryReward;
+        Assert.AreEqual(expectedPrimaryAmount, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, primary));
+        
+        // Find the mint notification to primary (from=null, to=primary)
+        var primaryMintNotification = engine.Notifications.FirstOrDefault(n => 
+            n.EventName == "Transfer" && 
+            new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
+            n.State[1].IsNull &&
+            new UInt160(n.State[2].GetSpan()) == primary);
+        Assert.IsNotNull(primaryMintNotification, "Primary mint notification not found");
+        Assert.AreEqual(expectedPrimaryAmount, primaryMintNotification.State[3].GetInteger());
 
         var scriptHash1 = Contract.CreateSignatureRedeemScript(key1.PublicKey).ToScriptHash();
-        Assert.AreEqual(expectedNotaryReward / 2, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash1));
-        Assert.AreEqual(expectedNotaryReward / 2, engine.Notifications[4].State[2]);
+        var expectedNotaryRewardPerNode = expectedNotaryReward / 2;
+        Assert.AreEqual(expectedNotaryRewardPerNode, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash1));
+        
+        // Find the mint notification to Notary1 (from=null, to=scriptHash1)
+        var notary1MintNotification = engine.Notifications.FirstOrDefault(n => 
+            n.EventName == "Transfer" && 
+            new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
+            n.State[1].IsNull &&
+            new UInt160(n.State[2].GetSpan()) == scriptHash1);
+        Assert.IsNotNull(notary1MintNotification, "Notary1 mint notification not found");
+        Assert.AreEqual(expectedNotaryRewardPerNode, notary1MintNotification.State[3].GetInteger());
 
         var scriptHash2 = Contract.CreateSignatureRedeemScript(key2.PublicKey).ToScriptHash();
-        Assert.AreEqual(expectedNotaryReward / 2, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash2));
+        Assert.AreEqual(expectedNotaryRewardPerNode, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash2));
+        
+        // Find the mint notification to Notary2 (from=null, to=scriptHash2)
+        var notary2MintNotification = engine.Notifications.FirstOrDefault(n => 
+            n.EventName == "Transfer" && 
+            new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
+            n.State[1].IsNull &&
+            new UInt160(n.State[2].GetSpan()) == scriptHash2);
+        Assert.IsNotNull(notary2MintNotification, "Notary2 mint notification not found");
+        Assert.AreEqual(expectedNotaryRewardPerNode, notary2MintNotification.State[3].GetInteger());
     }
 
     internal static StorageKey CreateStorageKey(byte prefix, uint key)
