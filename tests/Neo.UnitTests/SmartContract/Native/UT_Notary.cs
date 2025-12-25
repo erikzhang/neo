@@ -805,14 +805,14 @@ public class UT_Notary
         // is evenly devided between designated Notary nodes as a reward.
         // Notification order: burn tx1, burn tx2, mint primary, mint Notary1, mint Notary2
         Assert.HasCount(2 + 1 + 2, engine.Notifications);
-        
+
         // Verify primary balance (minted amount = netFee1 + netFee2 - expectedNotaryReward)
         var expectedPrimaryAmount = netFee1 + netFee2 - expectedNotaryReward;
         Assert.AreEqual(expectedPrimaryAmount, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, primary));
-        
+
         // Find the mint notification to primary (from=null, to=primary)
-        var primaryMintNotification = engine.Notifications.FirstOrDefault(n => 
-            n.EventName == "Transfer" && 
+        var primaryMintNotification = engine.Notifications.FirstOrDefault(n =>
+            n.EventName == "Transfer" &&
             new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
             n.State[1].IsNull &&
             new UInt160(n.State[2].GetSpan()) == primary);
@@ -822,10 +822,10 @@ public class UT_Notary
         var scriptHash1 = Contract.CreateSignatureRedeemScript(key1.PublicKey).ToScriptHash();
         var expectedNotaryRewardPerNode = expectedNotaryReward / 2;
         Assert.AreEqual(expectedNotaryRewardPerNode, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash1));
-        
+
         // Find the mint notification to Notary1 (from=null, to=scriptHash1)
-        var notary1MintNotification = engine.Notifications.FirstOrDefault(n => 
-            n.EventName == "Transfer" && 
+        var notary1MintNotification = engine.Notifications.FirstOrDefault(n =>
+            n.EventName == "Transfer" &&
             new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
             n.State[1].IsNull &&
             new UInt160(n.State[2].GetSpan()) == scriptHash1);
@@ -834,10 +834,10 @@ public class UT_Notary
 
         var scriptHash2 = Contract.CreateSignatureRedeemScript(key2.PublicKey).ToScriptHash();
         Assert.AreEqual(expectedNotaryRewardPerNode, NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NativeContract.Governance.GasTokenId, scriptHash2));
-        
+
         // Find the mint notification to Notary2 (from=null, to=scriptHash2)
-        var notary2MintNotification = engine.Notifications.FirstOrDefault(n => 
-            n.EventName == "Transfer" && 
+        var notary2MintNotification = engine.Notifications.FirstOrDefault(n =>
+            n.EventName == "Transfer" &&
             new UInt160(n.State[0].GetSpan()) == NativeContract.Governance.GasTokenId &&
             n.State[1].IsNull &&
             new UInt160(n.State[2].GetSpan()) == scriptHash2);
