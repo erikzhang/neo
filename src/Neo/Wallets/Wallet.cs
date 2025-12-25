@@ -335,6 +335,16 @@ public abstract class Wallet : ISigner
     /// <returns>The balance for the specified asset.</returns>
     public BigDecimal GetBalance(DataCache snapshot, UInt160 asset_id, params UInt160[] accounts)
     {
+        if (asset_id.Equals(NativeContract.Governance.GasTokenId))
+        {
+            BigInteger totalBalance = BigInteger.Zero;
+            foreach (UInt160 account in accounts)
+            {
+                totalBalance += NativeContract.TokenManagement.BalanceOf(snapshot, asset_id, account);
+            }
+            return new BigDecimal(totalBalance, Governance.GasTokenDecimals);
+        }
+
         byte[] script;
         using (ScriptBuilder sb = new())
         {
@@ -594,8 +604,22 @@ public abstract class Wallet : ISigner
                                 Scopes = WitnessScope.CalledByEntry
                             });
                         }
-                        sb.EmitDynamicCall(output.AssetId, "transfer", account, output.ScriptHash, value, output.Data);
-                        sb.Emit(OpCode.ASSERT);
+                        // GAS token uses TokenManagement.Transfer which requires assetId as first parameter
+                        // So we need to call TokenManagement contract's transfer method, not GasTokenId's transfer
+                        if (assetId.Equals(NativeContract.Governance.GasTokenId))
+                        {
+                            // Convert StackItem.Null to null for EmitPush
+                            object? data = output.Data;
+                            if (data is Neo.VM.Types.Null)
+                                data = null;
+                            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", CallFlags.All, assetId, account, output.ScriptHash, value, data);
+                            sb.Emit(OpCode.ASSERT);
+                        }
+                        else
+                        {
+                            sb.EmitDynamicCall(output.AssetId, "transfer", account, output.ScriptHash, value, output.Data);
+                            sb.Emit(OpCode.ASSERT);
+                        }
                     }
                 }
                 if (assetId.Equals(NativeContract.Governance.GasTokenId))
