@@ -607,19 +607,10 @@ public abstract class Wallet : ISigner
                         // GAS token uses TokenManagement.Transfer which requires assetId as first parameter
                         // So we need to call TokenManagement contract's transfer method, not GasTokenId's transfer
                         if (assetId.Equals(NativeContract.Governance.GasTokenId))
-                        {
-                            // Convert StackItem.Null to null for EmitPush
-                            object? data = output.Data;
-                            if (data is Neo.VM.Types.Null)
-                                data = null;
-                            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", CallFlags.All, assetId, account, output.ScriptHash, value, data);
-                            sb.Emit(OpCode.ASSERT);
-                        }
+                            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", assetId, account, output.ScriptHash, value, output.Data);
                         else
-                        {
                             sb.EmitDynamicCall(output.AssetId, "transfer", account, output.ScriptHash, value, output.Data);
-                            sb.Emit(OpCode.ASSERT);
-                        }
+                        sb.Emit(OpCode.ASSERT);
                     }
                 }
                 if (assetId.Equals(NativeContract.Governance.GasTokenId))
