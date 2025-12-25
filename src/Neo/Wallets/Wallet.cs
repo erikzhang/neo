@@ -554,12 +554,22 @@ public abstract class Wallet : ISigner
                 var balances = new List<(UInt160 Account, BigInteger Value)>();
                 foreach (UInt160 account in accounts)
                 {
-                    using ScriptBuilder sb2 = new();
-                    sb2.EmitDynamicCall(assetId, "balanceOf", CallFlags.ReadOnly, account);
-                    using ApplicationEngine engine = ApplicationEngine.Run(sb2.ToArray(), snapshot, settings: ProtocolSettings, persistingBlock: persistingBlock);
-                    if (engine.State != VMState.HALT)
-                        throw new InvalidOperationException($"Failed to execute balanceOf method for asset {assetId} on account {account}. The smart contract execution faulted with state: {engine.State}.");
-                    BigInteger value = engine.ResultStack.Pop().GetInteger();
+                    BigInteger value;
+                    // GAS token uses TokenManagement.BalanceOf which requires assetId as first parameter
+                    // So we can't use EmitDynamicCall with GasTokenId as contract address
+                    if (assetId.Equals(NativeContract.Governance.GasTokenId))
+                    {
+                        value = NativeContract.TokenManagement.BalanceOf(snapshot, assetId, account);
+                    }
+                    else
+                    {
+                        using ScriptBuilder sb2 = new();
+                        sb2.EmitDynamicCall(assetId, "balanceOf", CallFlags.ReadOnly, account);
+                        using ApplicationEngine engine = ApplicationEngine.Run(sb2.ToArray(), snapshot, settings: ProtocolSettings, persistingBlock: persistingBlock);
+                        if (engine.State != VMState.HALT)
+                            throw new InvalidOperationException($"Failed to execute balanceOf method for asset {assetId} on account {account}. The smart contract execution faulted with state: {engine.State}.");
+                        value = engine.ResultStack.Pop().GetInteger();
+                    }
                     if (value.Sign > 0) balances.Add((account, value));
                 }
                 BigInteger sum_balance = balances.Select(p => p.Value).Sum();
