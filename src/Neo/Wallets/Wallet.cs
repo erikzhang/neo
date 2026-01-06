@@ -565,9 +565,9 @@ public abstract partial class Wallet : ISigner
                 foreach (UInt160 account in accounts)
                 {
                     BigInteger value;
-                    // GAS token uses TokenManagement.BalanceOf which requires assetId as first parameter
-                    // So we can't use EmitDynamicCall with GasTokenId as contract address
-                    if (assetId.Equals(NativeContract.Governance.GasTokenId))
+                    // GAS and NEO tokens use TokenManagement.BalanceOf which requires assetId as first parameter
+                    // So we can't use EmitDynamicCall with GasTokenId or NeoTokenId as contract address
+                    if (assetId.Equals(NativeContract.Governance.GasTokenId) || assetId.Equals(NativeContract.Governance.NeoTokenId))
                     {
                         value = NativeContract.TokenManagement.BalanceOf(snapshot, assetId, account);
                     }
@@ -604,9 +604,9 @@ public abstract partial class Wallet : ISigner
                                 Scopes = WitnessScope.CalledByEntry
                             });
                         }
-                        // GAS token uses TokenManagement.Transfer which requires assetId as first parameter
-                        // So we need to call TokenManagement contract's transfer method, not GasTokenId's transfer
-                        if (assetId.Equals(NativeContract.Governance.GasTokenId))
+                        // GAS and NEO tokens use TokenManagement.Transfer which requires assetId as first parameter
+                        // So we need to call TokenManagement contract's transfer method, not GasTokenId's or NeoTokenId's transfer
+                        if (assetId.Equals(NativeContract.Governance.GasTokenId) || assetId.Equals(NativeContract.Governance.NeoTokenId))
                             sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", assetId, account, output.ScriptHash, value, output.Data);
                         else
                             sb.EmitDynamicCall(output.AssetId, "transfer", account, output.ScriptHash, value, output.Data);

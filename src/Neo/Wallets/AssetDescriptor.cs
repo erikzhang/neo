@@ -50,12 +50,20 @@ public class AssetDescriptor
     /// <param name="assetId">The id of the asset.</param>
     public AssetDescriptor(DataCache snapshot, ProtocolSettings settings, UInt160 assetId)
     {
-        // GasToken is managed by TokenManagement, not a contract itself
+        // GasToken and NeoToken are managed by TokenManagement, not contracts themselves
         if (assetId.Equals(NativeContract.Governance.GasTokenId))
         {
             TokenState token = NativeContract.TokenManagement.GetTokenInfo(snapshot, assetId)!;
             AssetId = assetId;
             AssetName = Governance.GasTokenName;
+            Symbol = token.Symbol;
+            Decimals = token.Decimals;
+        }
+        else if (assetId.Equals(NativeContract.Governance.NeoTokenId))
+        {
+            TokenState token = NativeContract.TokenManagement.GetTokenInfo(snapshot, assetId)!;
+            AssetId = assetId;
+            AssetName = Governance.NeoTokenName;
             Symbol = token.Symbol;
             Decimals = token.Decimals;
         }

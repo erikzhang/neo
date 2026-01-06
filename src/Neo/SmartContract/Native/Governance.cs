@@ -15,6 +15,7 @@ using Neo.Extensions.IO;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
 using Neo.SmartContract.Iterators;
+using Neo.SmartContract.Manifest;
 using Neo.VM;
 using Neo.VM.Types;
 using System.Buffers.Binary;
@@ -57,6 +58,11 @@ public sealed class Governance : NativeContract
     private const byte VoterRewardRatio = 80;
 
     internal Governance() : base(-13) { }
+
+    protected override void OnManifestCompose(IsHardforkEnabledDelegate hfChecker, uint blockHeight, ContractManifest manifest)
+    {
+        manifest.SupportedStandards = ["NEP-27"];
+    }
 
     internal override async ContractTask InitializeAsync(ApplicationEngine engine, Hardfork? hardFork)
     {
@@ -334,6 +340,27 @@ public sealed class Governance : NativeContract
     }
 
     /// <summary>
+    /// Gets the account state including balance, balance height, and vote target.
+    /// </summary>
+    /// <param name="snapshot">The snapshot used to read data.</param>
+    /// <param name="account">The account address.</param>
+    /// <returns>A struct containing balance, balance height, and vote target.</returns>
+    [ContractMethod(CpuFee = 1 << 15, RequiredCallFlags = CallFlags.ReadStates)]
+    public Struct GetAccountState(IReadOnlyStore snapshot, UInt160 account)
+    {
+        BigInteger balance = TokenManagement.BalanceOf(snapshot, NeoTokenId, account);
+        StorageKey key = CreateStorageKey(Prefix_NeoAccount, account);
+        NeoAccountState? state = snapshot.TryGet(key)?.GetInteroperable<NeoAccountState>();
+        uint balanceHeight = state?.BalanceHeight ?? 0;
+        ECPoint? voteTo = state?.VoteTo;
+        Struct result = new();
+        result.Add(balance);
+        result.Add(balanceHeight);
+        result.Add(voteTo is null ? StackItem.Null : voteTo.EncodePoint(true));
+        return result;
+    }
+
+    /// <summary>
     /// Gets the first 256 registered candidates.
     /// </summary>
     /// <param name="snapshot">The snapshot used to read data.</param>
@@ -463,6 +490,60 @@ public sealed class Governance : NativeContract
         var list = engine.CurrentContext!.GetState<ExecutionContextState>().CallingContext!.GetState<List<GasDistribution>>();
         foreach (var distribution in list)
             await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
+        
+        // Handle unclaimed gas distribution when transferring zero amount
+        // This allows claiming unclaimed gas by transferring 0 NEO
+        if (amount.IsZero && from is not null)
+        {
+            StorageKey accountKey = CreateStorageKey(Prefix_NeoAccount, from);
+            var accountStateItem = engine.SnapshotCache.TryGet(accountKey);
+            if (accountStateItem is not null)
+            {
+                accountStateItem = engine.SnapshotCache.GetAndChange(accountKey);
+                if (accountStateItem is not null)
+                {
+                    NeoAccountState accountState = accountStateItem.GetInteroperable<NeoAccountState>();
+                    BigInteger balance = NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NeoTokenId, from);
+                    GasDistribution? distribution = DistributeGas(engine, from, accountState, balance);
+                    if (distribution is not null)
+                        await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles NEP-27 payment for validator registration.
+    /// </summary>
+    /// <param name="engine">The engine used to process the payment.</param>
+    /// <param name="assetId">The asset identifier.</param>
+    /// <param name="from">The sender account.</param>
+    /// <param name="amount">The amount of tokens sent.</param>
+    /// <param name="data">Optional data containing the public key for registration.</param>
+    [ContractMethod(CpuFee = 1 << 15, RequiredCallFlags = CallFlags.States | CallFlags.AllowNotify)]
+    private async ContractTask _OnPayment(ApplicationEngine engine, UInt160 assetId, UInt160 from, BigInteger amount, StackItem data)
+    {
+        // Only accept GAS for NEP-27 registration, not NEO
+        if (assetId != GasTokenId)
+            throw new InvalidOperationException($"Only GAS can be accepted for validator registration via NEP-27, got {assetId}");
+        
+        // Check if the amount matches the registration price
+        long registerPrice = GetRegisterPrice(engine.SnapshotCache);
+        if ((long)amount != registerPrice)
+            throw new ArgumentOutOfRangeException(nameof(amount), $"Amount must equal the registration price {registerPrice}, got {amount}");
+        
+        // Extract public key from data
+        if (data is not ByteString dataBytes || dataBytes.GetSpan().Length == 0)
+            throw new FormatException("Data parameter must contain the public key for registration");
+        
+        ECPoint pubkey = ECPoint.DecodePoint(dataBytes.GetSpan(), ECCurve.Secp256r1);
+        
+        // Register the candidate
+        if (!RegisterInternal(engine, pubkey))
+            throw new InvalidOperationException("Failed to register candidate. The witness does not match the public key.");
+        
+        // Burn the registration fee (the GAS sent to this contract)
+        await TokenManagement.BurnInternal(engine, GasTokenId, Hash, amount, assertOwner: false, callOnBalanceChanged: false, callOnTransfer: false);
     }
 
     GasDistribution? DistributeGas(ApplicationEngine engine, UInt160 account, NeoAccountState state, BigInteger balance)
