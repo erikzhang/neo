@@ -15,7 +15,6 @@ using Neo.Extensions.IO;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
 using Neo.SmartContract.Iterators;
-using Neo.SmartContract.Manifest;
 using Neo.VM;
 using Neo.VM.Types;
 using System.Buffers.Binary;
@@ -58,11 +57,6 @@ public sealed class Governance : NativeContract
     private const byte VoterRewardRatio = 80;
 
     internal Governance() : base(-13) { }
-
-    protected override void OnManifestCompose(IsHardforkEnabledDelegate hfChecker, uint blockHeight, ContractManifest manifest)
-    {
-        manifest.SupportedStandards = ["NEP-27"];
-    }
 
     internal override async ContractTask InitializeAsync(ApplicationEngine engine, Hardfork? hardFork)
     {
