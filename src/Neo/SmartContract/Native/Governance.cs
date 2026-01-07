@@ -509,7 +509,7 @@ public sealed class Governance : NativeContract
     }
 
     /// <summary>
-    /// Handles NEP-27 payment for validator registration.
+    /// Handles payment callback for validator registration.
     /// </summary>
     /// <param name="engine">The engine used to process the payment.</param>
     /// <param name="assetId">The asset identifier.</param>
@@ -519,9 +519,9 @@ public sealed class Governance : NativeContract
     [ContractMethod(CpuFee = 1 << 15, RequiredCallFlags = CallFlags.States | CallFlags.AllowNotify)]
     private async ContractTask _OnPayment(ApplicationEngine engine, UInt160 assetId, UInt160 from, BigInteger amount, StackItem data)
     {
-        // Only accept GAS for NEP-27 registration, not NEO
+        // Only accept GAS for validator registration, not NEO
         if (assetId != GasTokenId)
-            throw new InvalidOperationException($"Only GAS can be accepted for validator registration via NEP-27, got {assetId}");
+            throw new InvalidOperationException($"Only GAS can be accepted for validator registration, got {assetId}");
 
         // Check if the amount matches the registration price
         long registerPrice = GetRegisterPrice(engine.SnapshotCache);

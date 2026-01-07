@@ -518,27 +518,27 @@ public class UT_NeoToken
     }
 
     [TestMethod]
-    public void Check_RegisterValidatorViaNEP27()
+    public void Check_RegisterValidatorViaOnPayment()
     {
         var clonedCache = _snapshotCache.CloneCache();
         var point = ECPoint.Parse("021821807f923a3da004fb73871509d7635bcc05f41edef2a3ca5c941d8bbc1231", ECCurve.Secp256r1);
         var pointData = point.EncodePoint(true);
 
         // Send some NEO, shouldn't be accepted
-        var ret = Check_RegisterValidatorViaNEP27(clonedCache, point, _persistingBlock, true, pointData, 1000_0000_0000);
+        var ret = Check_RegisterValidatorOnPayment(clonedCache, point, _persistingBlock, true, pointData, 1000_0000_0000);
         Assert.IsFalse(ret.State);
 
         // Send improper amount of GAS, shouldn't be accepted.
-        ret = Check_RegisterValidatorViaNEP27(clonedCache, point, _persistingBlock, false, pointData, 1000_0000_0001);
+        ret = Check_RegisterValidatorOnPayment(clonedCache, point, _persistingBlock, false, pointData, 1000_0000_0001);
         Assert.IsFalse(ret.State);
 
         // Broken witness.
         var badPoint = ECPoint.Parse("024c7b7fb6c310fccf1ba33b082519d82964ea93868d676662d4a59ad548df0e7d", ECCurve.Secp256r1);
-        ret = Check_RegisterValidatorViaNEP27(clonedCache, point, _persistingBlock, false, badPoint.EncodePoint(true), 1000_0000_0000);
+        ret = Check_RegisterValidatorOnPayment(clonedCache, point, _persistingBlock, false, badPoint.EncodePoint(true), 1000_0000_0000);
         Assert.IsFalse(ret.State);
 
         // Successful case.
-        ret = Check_RegisterValidatorViaNEP27(clonedCache, point, _persistingBlock, false, pointData, 1000_0000_0000);
+        ret = Check_RegisterValidatorOnPayment(clonedCache, point, _persistingBlock, false, pointData, 1000_0000_0000);
         Assert.IsTrue(ret.State);
         Assert.IsTrue(ret.Result);
 
@@ -1642,7 +1642,7 @@ public class UT_NeoToken
         return (true, result.GetBoolean());
     }
 
-    internal static (bool State, bool Result) Check_RegisterValidatorViaNEP27(DataCache clonedCache, ECPoint pubkey, Block persistingBlock, bool passNEO, byte[] data, BigInteger amount)
+    internal static (bool State, bool Result) Check_RegisterValidatorOnPayment(DataCache clonedCache, ECPoint pubkey, Block persistingBlock, bool passNEO, byte[] data, BigInteger amount)
     {
         var keyScriptHash = Contract.CreateSignatureRedeemScript(pubkey).ToScriptHash();
         StorageKey storageKey;
