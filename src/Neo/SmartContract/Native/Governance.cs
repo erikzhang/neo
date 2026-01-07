@@ -334,29 +334,6 @@ public sealed class Governance : NativeContract
     }
 
     /// <summary>
-    /// Gets the account state including balance, balance height, and vote target.
-    /// </summary>
-    /// <param name="snapshot">The snapshot used to read data.</param>
-    /// <param name="account">The account address.</param>
-    /// <returns>A struct containing balance, balance height, and vote target.</returns>
-    [ContractMethod(CpuFee = 1 << 15, RequiredCallFlags = CallFlags.ReadStates)]
-    public Struct GetAccountState(IReadOnlyStore snapshot, UInt160 account)
-    {
-        BigInteger balance = TokenManagement.BalanceOf(snapshot, NeoTokenId, account);
-        StorageKey key = CreateStorageKey(Prefix_NeoAccount, account);
-        NeoAccountState? state = snapshot.TryGet(key)?.GetInteroperable<NeoAccountState>();
-        uint balanceHeight = state?.BalanceHeight ?? 0;
-        ECPoint? voteTo = state?.VoteTo;
-        Struct result = new()
-        {
-            balance,
-            balanceHeight,
-            voteTo is null ? StackItem.Null : voteTo.EncodePoint(true)
-        };
-        return result;
-    }
-
-    /// <summary>
     /// Gets the first 256 registered candidates.
     /// </summary>
     /// <param name="snapshot">The snapshot used to read data.</param>
