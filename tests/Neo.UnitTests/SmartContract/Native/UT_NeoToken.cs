@@ -761,8 +761,8 @@ public class UT_NeoToken
         Assert.AreEqual(99999999, BalanceOf(clonedCache, from));
         Assert.AreEqual(1, BalanceOf(clonedCache, to));
 
-        var (from_balance, _, _) = GetAccountState(clonedCache, new UInt160(from));
-        var (to_balance, _, _) = GetAccountState(clonedCache, new UInt160(to));
+        var from_balance = NativeContract.TokenManagement.BalanceOf(clonedCache, NativeContract.Governance.NeoTokenId, new UInt160(from));
+        var to_balance = NativeContract.TokenManagement.BalanceOf(clonedCache, NativeContract.Governance.NeoTokenId, new UInt160(to));
 
         Assert.AreEqual(99999999, from_balance);
         Assert.AreEqual(1, to_balance);
@@ -1421,7 +1421,7 @@ public class UT_NeoToken
         Assert.IsFalse(ret.Result);
         Assert.IsTrue(ret.State);
 
-        var (_, _, vote_to_null) = GetAccountState(clonedCache, account);
+        var vote_to_null = NativeContract.Governance.GetVoteTarget(clonedCache, account);
         Assert.IsNull(vote_to_null);
 
         clonedCache.Delete(keyAccount);
@@ -1460,8 +1460,8 @@ public class UT_NeoToken
         ret = Check_Vote(clonedCache, account.ToArray(), ECCurve.Secp256r1.G.ToArray(), true, _persistingBlock);
         Assert.IsTrue(ret.Result);
         Assert.IsTrue(ret.State);
-        var (_, _, voteto) = GetAccountState(clonedCache, account);
-        Assert.AreEqual(ECCurve.Secp256r1.G.ToArray().ToHexString(), voteto.ToHexString());
+        var voteto = NativeContract.Governance.GetVoteTarget(clonedCache, account);
+        Assert.AreEqual(ECCurve.Secp256r1.G, voteto);
     }
 
     internal (bool State, bool Result) Transfer4TesingOnBalanceChanging(BigInteger amount, bool addVotes)
@@ -1807,24 +1807,6 @@ public class UT_NeoToken
         Assert.IsInstanceOfType<Boolean>(result);
 
         return (true, result.GetBoolean());
-    }
-
-    internal static (BigInteger balance, BigInteger height, byte[]? voteto) GetAccountState(DataCache clonedCache, UInt160 account)
-    {
-        using var engine = ApplicationEngine.Create(TriggerType.Application, null, clonedCache, settings: TestProtocolSettings.Default);
-
-        using var script = new ScriptBuilder();
-        script.EmitDynamicCall(NativeContract.Governance.Hash, "getAccountState", account);
-        engine.LoadScript(script.ToArray());
-
-        Assert.AreEqual(VMState.HALT, engine.Execute());
-
-        var result = engine.ResultStack.Pop();
-        Assert.IsInstanceOfType<Struct>(result, out Struct state);
-        var balance = state[0].GetInteger();
-        var height = state[1].GetInteger();
-        var voteto = state[2].IsNull ? null : state[2].GetSpan().ToArray();
-        return (balance, height, voteto);
     }
 
     internal static bool Transfer(DataCache snapshot, byte[]? from, byte[]? to, BigInteger amount, bool signAccount, Block persistingBlock)

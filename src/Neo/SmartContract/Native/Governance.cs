@@ -334,29 +334,6 @@ public sealed class Governance : NativeContract
     }
 
     /// <summary>
-    /// Gets the account state including balance, balance height, and vote target.
-    /// </summary>
-    /// <param name="snapshot">The snapshot used to read data.</param>
-    /// <param name="account">The account address.</param>
-    /// <returns>A struct containing balance, balance height, and vote target.</returns>
-    [ContractMethod(CpuFee = 1 << 15, RequiredCallFlags = CallFlags.ReadStates)]
-    public Struct GetAccountState(IReadOnlyStore snapshot, UInt160 account)
-    {
-        BigInteger balance = TokenManagement.BalanceOf(snapshot, NeoTokenId, account);
-        StorageKey key = CreateStorageKey(Prefix_NeoAccount, account);
-        NeoAccountState? state = snapshot.TryGet(key)?.GetInteroperable<NeoAccountState>();
-        uint balanceHeight = state?.BalanceHeight ?? 0;
-        ECPoint? voteTo = state?.VoteTo;
-        Struct result = new()
-        {
-            balance,
-            balanceHeight,
-            voteTo is null ? StackItem.Null : voteTo.EncodePoint(true)
-        };
-        return result;
-    }
-
-    /// <summary>
     /// Gets the first 256 registered candidates.
     /// </summary>
     /// <param name="snapshot">The snapshot used to read data.</param>
@@ -483,28 +460,23 @@ public sealed class Governance : NativeContract
     async ContractTask _OnTransfer(ApplicationEngine engine, UInt160 assetId, UInt160 from, UInt160 to, BigInteger amount, StackItem data)
     {
         if (assetId != NeoTokenId) return;
-        var list = engine.CurrentContext!.GetState<ExecutionContextState>().CallingContext!.GetState<List<GasDistribution>>();
-        foreach (var distribution in list)
-            await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
-
-        // Handle unclaimed gas distribution when transferring zero amount
-        // This allows claiming unclaimed gas by transferring 0 NEO
-        if (amount.IsZero && from is not null)
+        if (amount.IsZero || from == to)
         {
-            StorageKey accountKey = CreateStorageKey(Prefix_NeoAccount, from);
-            var accountStateItem = engine.SnapshotCache.TryGet(accountKey);
-            if (accountStateItem is not null)
-            {
-                accountStateItem = engine.SnapshotCache.GetAndChange(accountKey);
-                if (accountStateItem is not null)
-                {
-                    NeoAccountState accountState = accountStateItem.GetInteroperable<NeoAccountState>();
-                    BigInteger balance = NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NeoTokenId, from);
-                    GasDistribution? distribution = DistributeGas(engine, from, accountState, balance);
-                    if (distribution is not null)
-                        await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
-                }
-            }
+            // Handle unclaimed gas distribution when transferring zero amount
+            // This allows claiming unclaimed gas by transferring 0 NEO
+            StorageKey key = CreateStorageKey(Prefix_NeoAccount, from);
+            var accountState = engine.SnapshotCache.GetAndChange(key)?.GetInteroperable<NeoAccountState>();
+            if (accountState is null) return;
+            BigInteger balance = NativeContract.TokenManagement.BalanceOf(engine.SnapshotCache, NeoTokenId, from);
+            GasDistribution? distribution = DistributeGas(engine, from, accountState, balance);
+            if (distribution is not null)
+                await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
+        }
+        else
+        {
+            var list = engine.CurrentContext!.GetState<ExecutionContextState>().CallingContext!.GetState<List<GasDistribution>>();
+            foreach (var distribution in list)
+                await TokenManagement.MintInternal(engine, GasTokenId, distribution.Account, distribution.Amount, assertOwner: false, callOnBalanceChanged: false, callOnPayment: true, callOnTransfer: false);
         }
     }
 

@@ -564,22 +564,7 @@ public abstract partial class Wallet : ISigner
                 var balances = new List<(UInt160 Account, BigInteger Value)>();
                 foreach (UInt160 account in accounts)
                 {
-                    BigInteger value;
-                    // GAS and NEO tokens use TokenManagement.BalanceOf which requires assetId as first parameter
-                    // So we can't use EmitDynamicCall with GasTokenId or NeoTokenId as contract address
-                    if (assetId.Equals(NativeContract.Governance.GasTokenId) || assetId.Equals(NativeContract.Governance.NeoTokenId))
-                    {
-                        value = NativeContract.TokenManagement.BalanceOf(snapshot, assetId, account);
-                    }
-                    else
-                    {
-                        using ScriptBuilder sb2 = new();
-                        sb2.EmitDynamicCall(assetId, "balanceOf", CallFlags.ReadOnly, account);
-                        using ApplicationEngine engine = ApplicationEngine.Run(sb2.ToArray(), snapshot, settings: ProtocolSettings, persistingBlock: persistingBlock);
-                        if (engine.State != VMState.HALT)
-                            throw new InvalidOperationException($"Failed to execute balanceOf method for asset {assetId} on account {account}. The smart contract execution faulted with state: {engine.State}.");
-                        value = engine.ResultStack.Pop().GetInteger();
-                    }
+                    BigInteger value = NativeContract.TokenManagement.BalanceOf(snapshot, assetId, account);
                     if (value.Sign > 0) balances.Add((account, value));
                 }
                 BigInteger sum_balance = balances.Select(p => p.Value).Sum();
@@ -604,12 +589,7 @@ public abstract partial class Wallet : ISigner
                                 Scopes = WitnessScope.CalledByEntry
                             });
                         }
-                        // GAS and NEO tokens use TokenManagement.Transfer which requires assetId as first parameter
-                        // So we need to call TokenManagement contract's transfer method, not GasTokenId's or NeoTokenId's transfer
-                        if (assetId.Equals(NativeContract.Governance.GasTokenId) || assetId.Equals(NativeContract.Governance.NeoTokenId))
-                            sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", assetId, account, output.ScriptHash, value, output.Data);
-                        else
-                            sb.EmitDynamicCall(output.AssetId, "transfer", account, output.ScriptHash, value, output.Data);
+                        sb.EmitDynamicCall(NativeContract.TokenManagement.Hash, "transfer", assetId, account, output.ScriptHash, value, output.Data);
                         sb.Emit(OpCode.ASSERT);
                     }
                 }
